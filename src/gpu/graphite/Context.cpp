@@ -31,6 +31,7 @@
 
 #ifdef SK_DAWN
 #include "include/gpu/graphite/dawn/DawnBackendContext.h"
+#include "src/gpu/graphite/dawn/DawnQueueManager.h"
 #include "src/gpu/graphite/dawn/DawnSharedContext.h"
 #endif
 
@@ -79,8 +80,7 @@ std::unique_ptr<Context> Context::MakeDawn(const DawnBackendContext& backendCont
         return nullptr;
     }
 
-    // TODO: Make a QueueManager
-    std::unique_ptr<QueueManager> queueManager;
+    auto queueManager = std::make_unique<DawnQueueManager>(backendContext, sharedContext.get());
     if (!queueManager) {
         return nullptr;
     }
