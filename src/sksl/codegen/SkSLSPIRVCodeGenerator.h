@@ -563,7 +563,6 @@ private:
     UniformBuffer fUniformBuffer;
     std::vector<const VarDeclaration*> fTopLevelUniforms;
     SkTHashMap<const Variable*, int> fTopLevelUniformMap; // <var, UniformBuffer field index>
-    SkTHashMap<const Variable*, int> fUniformSamplersAndTextures;
     SkTHashSet<const Variable*> fSPIRVBonusVariables;
     SpvId fUniformBufferId = NA;
 

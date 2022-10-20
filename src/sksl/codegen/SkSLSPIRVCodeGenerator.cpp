@@ -1162,12 +1162,7 @@ SpvId SPIRVCodeGenerator::getFunctionType(const FunctionDeclaration& function) {
         // crashes. Making it take a float* and storing the argument in a temporary variable,
         // as glslang does, fixes it. It's entirely possible I simply missed whichever part of
         // the spec makes this make sense.
-        if (parameter->type().typeKind() == Type::TypeKind::kSeparateSampler ||
-            parameter->type().typeKind() == Type::TypeKind::kTexture) {
-            words.push_back(this->getType(parameter->type()));
-        } else {
-            words.push_back(this->getPointerType(parameter->type(), SpvStorageClassFunction));
-        }
+        words.push_back(this->getPointerType(parameter->type(), SpvStorageClassFunction));
     }
     return this->writeInstruction(SpvOpTypeFunction, words, fConstantBuffer);
 }
@@ -1645,11 +1640,6 @@ SpvId SPIRVCodeGenerator::writeFunctionCallArgument(const FunctionCall& call,
     SpvId tmpVar;
     // if we need a temporary var to store this argument, this is the value to store in the var
     SpvId tmpValueId = NA;
-
-    if (arg.is<VariableReference>() && (arg.type().typeKind() == Type::TypeKind::kSeparateSampler ||
-                                        arg.type().typeKind() == Type::TypeKind::kTexture)) {
-        return this->writeExpression(arg, out);
-    }
 
     if (is_out(paramModifiers)) {
         std::unique_ptr<LValue> lv = this->getLValue(arg, out);
@@ -2547,19 +2537,9 @@ SpvId SPIRVCodeGenerator::writeVariableReference(const VariableReference& ref, O
                                          out);
         }
         default:
-            break;
+            return this->getLValue(ref, out)->load(out);
     }
 
-    if (variable->type().typeKind() == Type::TypeKind::kSeparateSampler ||
-        variable->type().typeKind() == Type::TypeKind::kTexture) {
-        int* uniformSamplerId = fUniformSamplersAndTextures.find(variable);
-        if (uniformSamplerId == nullptr) {
-            SpvId* entry = fVariableMap.find(variable);
-            SkASSERTF(entry, "%s", static_cast<const Expression*>(&ref)->description().c_str());
-            return *entry;
-        }
-    }
-    return this->getLValue(ref, out)->load(out);
 }
 
 SpvId SPIRVCodeGenerator::writeIndexExpression(const IndexExpression& expr, OutputStream& out) {
@@ -3319,13 +3299,7 @@ SpvId SPIRVCodeGenerator::writeFunctionStart(const FunctionDeclaration& f, Outpu
     for (const Variable* parameter : f.parameters()) {
         SpvId id = this->nextId(nullptr);
         fVariableMap.set(parameter, id);
-        SpvId type;
-        if (parameter->type().typeKind() == Type::TypeKind::kSeparateSampler ||
-            parameter->type().typeKind() == Type::TypeKind::kTexture) {
-            type = this->getType(parameter->type());
-        } else {
-            type = this->getPointerType(parameter->type(), SpvStorageClassFunction);
-        }
+        SpvId type = this->getPointerType(parameter->type(), SpvStorageClassFunction);
         this->writeInstruction(SpvOpFunctionParameter, type, id, out);
     }
     return result;
@@ -3533,10 +3507,6 @@ void SPIRVCodeGenerator::writeGlobalVar(ProgramKind kind, const VarDeclaration& 
     SpvId id = this->nextId(&type);
     fVariableMap.set(var, id);
     Layout layout = var->modifiers().fLayout;
-    if (var->type().typeKind() == Type::TypeKind::kSeparateSampler ||
-        var->type().typeKind() == Type::TypeKind::kTexture) {
-        fUniformSamplersAndTextures.set(var, id);
-    }
     if (layout.fSet < 0 && storageClass == SpvStorageClassUniformConstant) {
         layout.fSet = fProgram.fConfig->fSettings.fDefaultUniformSet;
     }
@@ -4017,16 +3987,6 @@ void SPIRVCodeGenerator::addRTFlipUniform(Position pos) {
 }
 
 void SPIRVCodeGenerator::writeInstructions(const Program& program, OutputStream& out) {
-#if 0
-        fContext.fErrors->error(Position(), "\n----------");
-        fContext.fErrors->error(Position(), "Source IR:\n");
-        for (const ProgramElement* e : program.elements()) {
-            fContext.fErrors->error(Position(), e->description().c_str());
-            fContext.fErrors->error(Position(), "\n");
-        }
-        return;
-#endif
-
     fGLSLExtendedInstructions = this->nextId(nullptr);
     StringStream body;
     // Assign SpvIds to functions.
